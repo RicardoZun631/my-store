@@ -2,80 +2,128 @@
 /* eslint-disable react/prop-types */
 import { API_URL } from "../config";
 
-function ProductList({ products, onProductDeleted }) {
+function ProductList({ products, onProductChanged }) {
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    if (!window.confirm("Delete product?")) return;
 
     try {
-      const res = await fetch(`${API_URL}/products/${id}`, {
-        method: "DELETE",
-      });
-
+      const res = await fetch(`${API_URL}/products/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || "Error deleting product");
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to delete");
       }
-
-      if (onProductDeleted) onProductDeleted(id);
+      onProductChanged?.();
     } catch (err) {
-      console.error(err);
-      alert(err.message || "Failed to delete product");
+      alert(err.message);
+    }
+  };
+
+  const handleEdit = async (product) => {
+    const name = window.prompt("Name:", product.name);
+    if (name === null) return;
+
+    const priceStr = window.prompt("Price:", product.price);
+    if (priceStr === null) return;
+    const price = Number(priceStr);
+    if (Number.isNaN(price)) return alert("Invalid price");
+
+    const category = window.prompt("Category:", product.category || "");
+    if (category === null) return;
+
+    const description = window.prompt(
+      "Description:",
+      product.description || ""
+    );
+    if (description === null) return;
+
+    try {
+      const res = await fetch(`${API_URL}/products/${product.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, price, category, description }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to update");
+      }
+      onProductChanged?.();
+    } catch (err) {
+      alert(err.message);
     }
   };
 
   return (
-    <div className="flex flex-col items-center">
-      <h2 className="text-2xl font-bold mb-4">Products (Table View)</h2>
+    <section className="card">
+      <h2 className="card-title">Products</h2>
 
-      <table className="border-collapse border border-gray-400">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="border border-gray-400 px-3 py-1">ID</th>
-            <th className="border border-gray-400 px-3 py-1">Name</th>
-            <th className="border border-gray-400 px-3 py-1">Price</th>
-            <th className="border border-gray-400 px-3 py-1">Category</th>
-            <th className="border border-gray-400 px-3 py-1">Description</th>
-            <th className="border border-gray-400 px-3 py-1">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((p) => (
-            <tr key={p.id}>
-              <td className="border border-gray-400 px-3 py-1">{p.id}</td>
-              <td className="border border-gray-400 px-3 py-1">{p.name}</td>
-              <td className="border border-gray-400 px-3 py-1">
-                ${Number(p.price).toFixed(2)}
-              </td>
-              <td className="border border-gray-400 px-3 py-1">
-                {p.category}
-              </td>
-              <td className="border border-gray-400 px-3 py-1">
-                {p.description}
-              </td>
-              <td className="border border-gray-400 px-3 py-1">
-                <button
-                  onClick={() => handleDelete(p.id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-
-          {products.length === 0 && (
+      <div className="table-wrapper">
+        <table className="table">
+          <thead>
             <tr>
-              <td
-                colSpan="6"
-                className="border border-gray-400 px-3 py-2 text-center"
-              >
-                No products found.
-              </td>
+              <th>ID</th>
+              <th>Name</th>
+              <th style={{ textAlign: "right" }}>Price</th>
+              <th>Category</th>
+              <th style={{ textAlign: "center" }}>Actions</th>
             </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {products.length ? (
+              products.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.id}</td>
+                  <td>{p.name}</td>
+                  <td style={{ textAlign: "right" }}>${p.price}</td>
+                  <td>{p.category || "-"}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <button
+                      className="btn-edit"
+                      onClick={() => handleEdit(p)}
+                    >
+                      Edit
+                    </button>{" "}
+                    <button
+                      className="btn-delete"
+                      onClick={() => handleDelete(p.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" style={{ textAlign: "center", padding: "12px" }}>
+                  No products found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 className="card-grid-title">Card View</h3>
+      <div className="card-grid">
+        {products.map((p) => (
+          <div key={p.id} className="product-card">
+            {p.image && (
+              <img
+                src={`data:image/jpeg;base64,${p.image}`}
+                alt={p.name}
+              />
+            )}
+            <div className="product-name">{p.name}</div>
+            <div className="product-meta">
+              {p.category || "Uncategorized"}
+            </div>
+            <div className="product-price">${p.price}</div>
+            <div className="product-desc">
+              {p.description || "No description"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
